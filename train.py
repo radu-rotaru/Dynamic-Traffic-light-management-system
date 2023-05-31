@@ -108,24 +108,22 @@ class Agent:
         self.Q_eval = Model(
             self.lr, self.input_dims, self.fc1_dims, self.fc2_dims, self.n_actions
         )
+
         self.memory = dict()
+       
         for junction in junctions:
             self.memory[junction] = {
-                "state_memory": np.zeros(
-                    (self.max_mem, self.input_dims), dtype=np.float32
-                ),
-                "new_state_memory": np.zeros(
-                    (self.max_mem, self.input_dims), dtype=np.float32
-                ),
-                "reward_memory":np.zeros(self.max_mem, dtype=np.float32),
+                "state_memory": np.zeros((self.max_mem, self.input_dims), dtype=np.float32),
+                "new_state_memory": np.zeros((self.max_mem, self.input_dims), dtype=np.float32),
+                "reward_memory": np.zeros(self.max_mem, dtype=np.float32),
                 "action_memory": np.zeros(self.max_mem, dtype=np.int32),
-                "terminal_memory": np.zeros(self.max_mem, dtype=np.bool),
+                "terminal_memory": np.zeros(self.max_mem, dtype=np.bool_),
                 "mem_cntr": 0,
                 "iter_cntr": 0,
             }
 
 
-    def store_transition(self, state, state_, action,reward, done,junction):
+    def store_transition(self, state, state_, action, reward, done, junction):
         index = self.memory[junction]["mem_cntr"] % self.max_mem
         self.memory[junction]["state_memory"][index] = state
         self.memory[junction]["new_state_memory"][index] = state_
@@ -142,18 +140,18 @@ class Agent:
         else:
             action = np.random.choice(self.action_space)
         return action
-    
-    def reset(self,junction_numbers):
+
+    def reset(self, junction_numbers):
         for junction_number in junction_numbers:
             self.memory[junction_number]['mem_cntr'] = 0
 
     def save(self,model_name):
-        torch.save(self.Q_eval.state_dict(),f'models/{model_name}.bin')
+        torch.save(self.Q_eval.state_dict(), f"models/{model_name}.bin")
 
     def learn(self, junction):
         self.Q_eval.optimizer.zero_grad()
 
-        batch= np.arange(self.memory[junction]['mem_cntr'], dtype=np.int32)
+        batch = np.arange(self.memory[junction]['mem_cntr'], dtype=np.int32)
 
         state_batch = torch.tensor(self.memory[junction]["state_memory"][batch]).to(
             self.Q_eval.device
@@ -161,8 +159,10 @@ class Agent:
         new_state_batch = torch.tensor(
             self.memory[junction]["new_state_memory"][batch]
         ).to(self.Q_eval.device)
+
         reward_batch = torch.tensor(
             self.memory[junction]['reward_memory'][batch]).to(self.Q_eval.device)
+
         terminal_batch = torch.tensor(self.memory[junction]['terminal_memory'][batch]).to(self.Q_eval.device)
         action_batch = self.memory[junction]["action_memory"][batch]
 
@@ -183,7 +183,7 @@ class Agent:
         )
 
 
-def run(train=True,model_name="model",epochs=50,steps=500,ard=False):
+def run(train=True,model_name="model", epochs=50, steps=500, ard=False):
     if ard:
         arduino = serial.Serial(port='COM4', baudrate=9600, timeout=.1)
         def write_read(x):
@@ -199,6 +199,7 @@ def run(train=True,model_name="model",epochs=50,steps=500,ard=False):
     traci.start(
         [checkBinary("sumo"), "-c", "configuration.sumocfg", "--tripinfo-output", "maps/tripinfo.xml"]
     )
+
     all_junctions = traci.trafficlight.getIDList()
     junction_numbers = list(range(len(all_junctions)))
 
@@ -207,11 +208,10 @@ def run(train=True,model_name="model",epochs=50,steps=500,ard=False):
         epsilon=0.0,
         lr=0.1,
         input_dims=4,
-        # input_dims = len(all_junctions) * 4,
         fc1_dims=256,
         fc2_dims=256,
         batch_size=1024,
-        n_actions=4,
+        n_actions=2,
         junctions=junction_numbers,
     )
 
@@ -231,12 +231,12 @@ def run(train=True,model_name="model",epochs=50,steps=500,ard=False):
             )
 
         print(f"epoch: {e}")
-        select_lane = [
-            ["yyyrrrrrrrrr", "GGGrrrrrrrrr"],
-            ["rrryyyrrrrrr", "rrrGGGrrrrrr"],
-            ["rrrrrryyyrrr", "rrrrrrGGGrrr"],
-            ["rrrrrrrrryyy", "rrrrrrrrrGGG"],
-        ]
+        # select_lane = [
+        #     ["yyyrrrrrrrrr", "GGGrrrrrrrrr"],
+        #     ["rrryyyrrrrrr", "rrrGGGrrrrrr"],
+        #     ["rrrrrryyyrrr", "rrrrrrGGGrrr"],
+        #     ["rrrrrrrrryyy", "rrrrrrrrrGGG"],
+        # ]
 
         # select_lane = [
         #     ["yyyyrrrrrrrrrrrr", "GGGGrrrrrrrrrrrr"],
@@ -245,6 +245,10 @@ def run(train=True,model_name="model",epochs=50,steps=500,ard=False):
         #     ["rrrrrrrrrrrryyyy", "rrrrrrrrrrrrGGGG"],
         # ]
 
+        select_lane = [
+            ["yyyrrryyyrrr", "GGgrrrGGgrrr"],
+            ["rrryyyrrryyy", "rrrGGgrrrGGg"],
+        ]
         step = 0
         total_time = 0
         min_duration = 5
